@@ -1,0 +1,20 @@
+{
+	"name": "multiLogger",
+	"version": "0.0.9",
+	"keywords": "Communication",
+	"description": "Ever wanted to log easily using one or multiple outputs (serial, spiffs, tcp, udp)?",
+	"authors":
+	[
+		{
+		"name": "Benjamin Voelker",
+		"email": "voelkerb@me.com",
+		"url": "http://github.com/voelkerb/ESP.multiLogger"
+		}
+	],
+	"repository":
+	{
+		"type": "git",
+		"url": "http://github.com/voelkerb/ESP.multiLogger.git"
+	},
+	"frameworks": "arduino"
+}

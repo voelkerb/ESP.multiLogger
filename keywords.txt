@@ -1,0 +1,62 @@
+#######################################
+# Syntax Coloring multiLogger Library
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+LogType		    KEYWORD1	
+LoggerType	    KEYWORD1	
+Logger		    KEYWORD1
+StreamLogger	KEYWORD1
+SPIFFSLogger	KEYWORD1
+MultiLogger		KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+write	        KEYWORD2
+flush		    KEYWORD2
+init	        KEYWORD2
+timestamp	    KEYWORD2
+flushAppended	KEYWORD2
+log	            KEYWORD2
+setLogType		KEYWORD2
+dumpLogfile		KEYWORD2
+clear		    KEYWORD2
+getFileSize		KEYWORD2
+listAllFiles	KEYWORD2
+logRows		    KEYWORD2
+nextRow		    KEYWORD2
+addLogger		KEYWORD2
+removeLogger	KEYWORD2
+setTimeGetter	KEYWORD2
+
+#######################################
+# Structures (KEYWORD3)
+#######################################
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+_MAX_LOG_STREAMS		LITERAL1
+_MAX_LOG_TEXT_LENGTH	LITERAL1
+_MAX_TIME_TEXT_LENGTH	LITERAL1
+_MAX_TYPE_TEXT_LENGTH	LITERAL1
+_MAX_TEXT_LENGTH		LITERAL1
+LOG_TYPE_TEXT		    LITERAL1
+LOG_ALL_TEXT		    LITERAL1
+LOG_DEBUG_TEXT		    LITERAL1
+LOG_INFO_TEXT		    LITERAL1
+LOG_WARNING_TEXT		LITERAL1
+LOG_ERROR_TEXT		    LITERAL1
+NOTHING_TEXT		    LITERAL1
+BYTES		            LITERAL1
+KILO_BYTES		        LITERAL1
+MEGA_BYTES		        LITERAL1
+MY_RESET_REASON_TXT		LITERAL1
+_logText		        LITERAL1
+_aLLStr		            LITERAL1
