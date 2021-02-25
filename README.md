@@ -66,3 +66,5 @@ char * timeStr() {
   return &timeStr2[0];
 }
 ```
+
+For a more advanced logging over tcp streams, see the advanced demo ```advanced.ino```.
