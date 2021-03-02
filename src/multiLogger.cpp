@@ -102,7 +102,7 @@ bool StreamLogger::init() {
 }
 
 
-#if defined(ESP32)
+// #if defined(ESP32)
 //  #define DEBUG_SPIFFS_LOGGER
 // ********************************* SPIFFS LOGGER ************************************* //
 SPIFFSLogger::SPIFFSLogger(bool autoFlush, const char * fileName, char * (*timeStrGetter)(void), 
@@ -115,12 +115,82 @@ SPIFFSLogger::SPIFFSLogger(bool autoFlush, const char * fileName, char * (*timeS
   _truncated = false;
   _bufferIndex = 0;
   _autoFlush = autoFlush;
+#if defined(ESP32)
   _mutex = xSemaphoreCreateMutex();
+#endif
   loggerType = SPIFFS_LOGGER;
   // Init buffers
   for (size_t i = 0; i < BUFFERS; i++) buffer[i][0] = '\0';
 }
 
+#if defined(ESP8266)
+bool SPIFFSLogger::init() {
+  bool initok = SPIFFS.begin();
+  if (!(initok)) {
+    #ifdef DEBUG_SPIFFS_LOGGER
+    Serial.println("SPIFFS Dateisystem formatiert.");
+    #endif
+    SPIFFS.format();
+    initok = SPIFFS.begin();
+  }
+  if (!(initok)) {
+    SPIFFS.format();
+    initok = SPIFFS.begin();
+  } 
+
+  if (initok) {
+    #ifdef DEBUG_SPIFFS_LOGGER
+    Serial.println("SPIFFS Initialisierung....OK");
+    #endif
+  } else {
+    #ifdef DEBUG_SPIFFS_LOGGER
+    Serial.println("SPIFFS Initialisierung...Fehler!");
+    #endif
+    return false;
+  }
+  #ifdef DEBUG_SPIFFS_LOGGER
+  for (size_t i = 0; i < NUM_FILES; i++) {
+    if (SPIFFS.exists(_fileName[i])) Serial.printf("File %s exists\n", _fileName[i]);
+    else Serial.printf("File %s does not exist, t will be created\n", _fileName[i]);
+  }
+  #endif
+  
+  // This will create files if they do not exist
+  for (size_t i = 0; i < NUM_FILES; i++) _openFor(i, Appending);
+  for (size_t i = 0; i < NUM_FILES; i++) {
+    _openFor(i, Reading);
+    if (!_file[i]) {
+      #ifdef DEBUG_SPIFFS_LOGGER
+      Serial.printf("There was an error opening the file %s\n", _fileName[i]);
+      #endif
+      return false;
+    }
+  }
+  
+  _openFor(0, Appending);
+  if (_timeStrGetter != NULL) {
+    _file[0].print(_timeStrGetter());
+    _file[0].print(": ");
+  } 
+  _file[0].println("Reboot - inited SPIFFS Logger");
+  _file[0].flush();
+
+  for (size_t i = 0; i < NUM_FILES; i++) _rowsFile[i] = -1;
+  
+  #ifdef DEBUG_SPIFFS_LOGGER
+  for (size_t i = 0; i < NUM_FILES; i++) {
+    _openFor(i, Reading);
+    _rowsFile[i] = _getRowsInFile(_file[i]);
+    Serial.printf("#Rows %s: %i \n", _file[i].name(), _rowsFile[i]);
+  }
+  #endif
+
+  _currentFile = -1;
+  return true;
+}
+#endif
+
+#if defined(ESP32)
 bool SPIFFSLogger::init() {
   if(SPIFFS.begin(true)) {
     #ifdef DEBUG_SPIFFS_LOGGER
@@ -172,6 +242,7 @@ bool SPIFFSLogger::init() {
   _currentFile = -1;
   return true;
 }
+#endif
 
 
 
@@ -312,7 +383,9 @@ void SPIFFSLogger::write(const char * str) {
 }
 
 void SPIFFSLogger::write(char * str) {
+#if defined(ESP32)
   if (xSemaphoreTake(_mutex, portMAX_DELAY) == pdTRUE) { 
+#endif
     if (_autoFlush) {
       _write(str);
     } else {
@@ -343,8 +416,10 @@ void SPIFFSLogger::write(char * str) {
       memcpy(&buffer[_bufferIndex][n1], str, n2+1);
       //}
     }
+#if defined(ESP32)
     xSemaphoreGive(_mutex);
   }
+#endif
 }
 
 void SPIFFSLogger::_write(char * str) {
@@ -374,7 +449,9 @@ void SPIFFSLogger::flush() {
   if (!_autoFlush) {
   // Nothing to be done
     if (strlen(&buffer[0][0]) > 0) {
+#if defined(ESP32)
       if (xSemaphoreTake(_mutex, portMAX_DELAY) == pdTRUE) { 
+#endif
         #ifdef DEBUG_SPIFFS_LOGGER
         Serial.println("flushing");
         #endif
@@ -399,8 +476,10 @@ void SPIFFSLogger::flush() {
         #ifdef DEBUG_SPIFFS_LOGGER
         Serial.println("flushed");
         #endif
+#if defined(ESP32)
       }
       xSemaphoreGive(_mutex);
+#endif
     }
   } else {
     _file[0].flush();
@@ -426,14 +505,14 @@ void SPIFFSLogger::_fileSizeLimitReached() {
 }
 
 void SPIFFSLogger::listAllFiles() {
-  File root = SPIFFS.open("/");
+  File root = SPIFFS.open("/", FILE_READ);
   File file = root.openNextFile();
   while(file){
     _getFileSize(file);
     file = root.openNextFile();
   }
 }
-#endif
+// #endif
 
 // ********************************* MULTI LOGGER ************************************* //
 
