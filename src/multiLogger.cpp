@@ -597,7 +597,7 @@ bool MultiLogger::addLogger(Logger * logger) {
   bool success = false;
   // Makes adding thread safe
 #if defined(ESP32)
-  if (!xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE) return success; 
+  if (!(xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE)) return success; 
 #endif
   for (size_t i = 0; i < _MAX_LOG_STREAMS; i++) {
     if (loggers[i] == NULL) {
@@ -616,7 +616,7 @@ bool MultiLogger::removeLogger(Logger * logger) {
   bool success = false;
   // Makes removing thread safe
 #if defined(ESP32)
-  if (!xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE) return success; 
+  if (!(xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE)) return success; 
 #endif
   for (size_t i = 0; i < _MAX_LOG_STREAMS; i++) {
     if (loggers[i] == logger) {
@@ -678,7 +678,7 @@ void MultiLogger::log(const char* _log, ...) {
 #if defined(ESP32)
     // Typically this should not happen
     // TODO: recovery from here?
-  if (!xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE) return; 
+  if (!(xSemaphoreTake(w_mutex, portMAX_DELAY) == pdTRUE)) return; 
 #endif
   // Get time from time getter string
   char * timeStr = (char *)&NOTHING_TEXT[0];
