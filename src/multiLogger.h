@@ -18,6 +18,8 @@
 #if defined(ESP32)
 #include "SPIFFS.h"
 #include <rom/rtc.h>
+#elif defined(ESP8266)
+#include <FS.H> 
 #endif
 
 #define _MAX_LOG_STREAMS 5
@@ -113,7 +115,7 @@ class StreamLogger : public Logger {
 
 
 // currently only the esp32 is supported fro spiffs
-#if defined(ESP32)
+// #if defined(ESP32)
 class SPIFFSLogger : public Logger {
   #define DEFAULT_MAX_FILESIZE (1024*20) // 20kb
   #define BUFFERS 2
@@ -148,7 +150,9 @@ class SPIFFSLogger : public Logger {
     // If flushing should be performed automatically
     // If not you have to call it
     bool _autoFlush;
+#if defined(ESP32)
     SemaphoreHandle_t _mutex; 
+#endif
     // Shows if flushing was not performed for some str
     bool _truncated;
     // Buffer str before flushing
@@ -165,9 +169,14 @@ class SPIFFSLogger : public Logger {
     // maximum filesize before copied over
     uint32_t _maxFileSize;
 };
-#endif
+// #endif
 
 class MultiLogger {
+#if defined(ESP8266)
+  #define FILE_READ "r"
+  #define FILE_WRITE "w"
+  #define FILE_APPEND "a"
+#endif
   public:
     static MultiLogger& getInstance(){
       static MultiLogger instance;
