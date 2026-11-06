@@ -26,59 +26,76 @@ void Logger::setLogType(LogType type) {
 }
 
 
+// Append formatted text to the shared log text buffer, never writes beyond the buffer
+static uint32_t _appendText(uint32_t index, const char* fmt, va_list args) {
+  if (index >= _MAX_TEXT_LENGTH - 1) return _MAX_TEXT_LENGTH - 1;
+  int n = vsnprintf(&_logText[index], _MAX_TEXT_LENGTH - index, fmt, args);
+  if (n < 0) return index;
+  index += n;
+  if (index > _MAX_TEXT_LENGTH - 1) index = _MAX_TEXT_LENGTH - 1;
+  return index;
+}
+
 void Logger::append(const char* _log, ...) {
   va_list args;
   va_start(args, _log);
-  _index += vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
+  _index = _appendText(_index, _log, args);
   va_end(args);
 }
 
 void Logger::append(char* _log, ...) {
-  va_list VAList;
-  va_start(VAList, _log);
-  _index += vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, VAList);
-  va_end(VAList);
+  va_list args;
+  va_start(args, _log);
+  _index = _appendText(_index, _log, args);
+  va_end(args);
 }
 
 void Logger::flushAppended(LogType type) {
-  _currentLog = type;
-  log("");
+  log(type, "");
 }
 
 void Logger::log(LogType type, char* _log, ...) {
-  _currentLog = type;
-  log((const char*)_log);
+  va_list args;
+  va_start(args, _log);
+  _vlog(type, _log, args);
+  va_end(args);
 }
 void Logger::log(char* _log, ...) {
-  log((const char*)_log);
+  va_list args;
+  va_start(args, _log);
+  _vlog(INFO, _log, args);
+  va_end(args);
 }
 void Logger::log(LogType type, const char* _log, ...) {
-  _currentLog = type;
-  log(_log);
+  va_list args;
+  va_start(args, _log);
+  _vlog(type, _log, args);
+  va_end(args);
 }
 void Logger::log(const char* _log, ...) {
-  // Wait maximum time for semaphone to be available
-    // Get time from time getter string
-    char * timeStr = (char *)&NOTHING_TEXT[0];
-    if (_timeStrGetter != NULL) {
-      timeStr = _timeStrGetter();
-    }
-    va_list args;
-    va_start(args, _log);
-    vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
-    va_end(args);
-
-    const char * typeStr = LOG_TYPE_TEXT[_currentLog];
-    // const char * typeStr = _logTypeToStr(_currentLog);
-    if ((uint8_t)_type <= (uint8_t)_currentLog) {
-      snprintf(_aLLStr, _MAX_TEXT_LENGTH, "%s%s%s: %s\r\n", _prefix, typeStr, timeStr, _logText);
-      // Has to be a one liner since data might be written from somewhere else
-      write(_aLLStr);
-    }
-    _index = 0;
-    // Reset type string
-    _currentLog = INFO;
+  va_list args;
+  va_start(args, _log);
+  _vlog(INFO, _log, args);
+  va_end(args);
 }
+
+void Logger::_vlog(LogType type, const char* fmt, va_list args) {
+  // Get time from time getter string
+  char * timeStr = (char *)&NOTHING_TEXT[0];
+  if (_timeStrGetter != NULL) {
+    timeStr = _timeStrGetter();
+  }
+  _index = _appendText(_index, fmt, args);
+
+  const char * typeStr = LOG_TYPE_TEXT[type];
+  if ((uint8_t)_type <= (uint8_t)type) {
+    snprintf(_aLLStr, _MAX_TEXT_LENGTH, "%s%s%s: %s\r\n", _prefix, typeStr, timeStr, _logText);
+    // Has to be a one liner since data might be written from somewhere else
+    write(_aLLStr);
+  }
+  _index = 0;
+}
+
 
 
 
@@ -89,13 +106,13 @@ StreamLogger::StreamLogger(Stream * stream, char * (*timeStrGetter)(void), const
   loggerType = STREAM_LOGGER;
 }
 void StreamLogger::write(const char * str) {
-  _stream->write(str);
+  if (_stream != NULL) _stream->write(str);
 }
 void StreamLogger::write(char * str) {
-  _stream->write(str);
+  if (_stream != NULL) _stream->write(str);
 }
 void StreamLogger::flush() {
-  _stream->flush();
+  if (_stream != NULL) _stream->flush();
 }
 bool StreamLogger::init() {
   return true;
@@ -259,7 +276,7 @@ bool SPIFFSLogger::_openFor(int file, FileMode mode) {
   return _file[file];
 }
 
-bool SPIFFSLogger::nextRow(char * buffer) {
+bool SPIFFSLogger::nextRow(char * buffer, size_t size) {
   if (_currentFile <= -1) {
     _currentFile = NUM_FILES-1;
     _openFor(NUM_FILES-1, Reading);
@@ -278,10 +295,10 @@ bool SPIFFSLogger::nextRow(char * buffer) {
     return false;
   }
   //Serial.print(_file[_currentFile].readStringUntil('\n'));
-  strcpy(buffer, _file[_currentFile].readStringUntil('\n').c_str());
+  snprintf(buffer, size, "%s", _file[_currentFile].readStringUntil('\n').c_str());
   // remove \r
   int length = strlen(buffer);
-  if (length > 0) buffer[length-1] = '\0';
+  if (length > 0 && buffer[length-1] == '\r') buffer[length-1] = '\0';
   return true;
 }
 
@@ -477,8 +494,8 @@ void SPIFFSLogger::flush() {
         Serial.println("flushed");
         #endif
 #if defined(ESP32)
+        xSemaphoreGive(_mutex);
       }
-      xSemaphoreGive(_mutex);
 #endif
     }
   } else {
@@ -634,46 +651,50 @@ bool MultiLogger::removeLogger(Logger * logger) {
 void MultiLogger::append(const char* _log, ...) {
   va_list args;
   va_start(args, _log);
-  _index += vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
+  _index = _appendText(_index, _log, args);
   va_end(args);
 }
 
 void MultiLogger::append(char* _log, ...) {
-  va_list VAList;
-  va_start(VAList, _log);
-  _index += vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, VAList);
-  va_end(VAList);
+  va_list args;
+  va_start(args, _log);
+  _index = _appendText(_index, _log, args);
+  va_end(args);
 }
 
 void MultiLogger::flushAppended(LogType type) {
-  _currentLog = type;
-  log("");
+  log(type, "");
 }
 
 void MultiLogger::log(LogType type, char* _log, ...) {
   va_list args;
   va_start(args, _log);
-  vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
+  _vlog(type, _log, args);
   va_end(args);
-  _currentLog = type;
-  log(_logText);
 }
 
 void MultiLogger::log(char* _log, ...) {
-  log((const char*)_log);
+  va_list args;
+  va_start(args, _log);
+  _vlog(INFO, _log, args);
+  va_end(args);
 }
-
 
 void MultiLogger::log(LogType type, const char* _log, ...) {
   va_list args;
   va_start(args, _log);
-  vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
+  _vlog(type, _log, args);
   va_end(args);
-  _currentLog = type;
-  log(_logText);
 }
 
 void MultiLogger::log(const char* _log, ...) {
+  va_list args;
+  va_start(args, _log);
+  _vlog(INFO, _log, args);
+  va_end(args);
+}
+
+void MultiLogger::_vlog(LogType type, const char* fmt, va_list args) {
   // Wait maximum time for semaphone to be available
 #if defined(ESP32)
     // Typically this should not happen
@@ -683,24 +704,18 @@ void MultiLogger::log(const char* _log, ...) {
   // Get time from time getter string
   char * timeStr = (char *)&NOTHING_TEXT[0];
   if (_timeStrGetter != NULL) timeStr = _timeStrGetter();
-  va_list args;
-  va_start(args, _log);
-  vsnprintf(&_logText[_index], _MAX_TEXT_LENGTH, _log, args);
-  va_end(args);
+  _index = _appendText(_index, fmt, args);
 
-  const char * typeStr = LOG_TYPE_TEXT[_currentLog];
-  // const char * typeStr = _logTypeToStr(_currentLog);
+  const char * typeStr = LOG_TYPE_TEXT[type];
 
   for (size_t i = 0; i < _MAX_LOG_STREAMS; i++) {
-    if (loggers[i] != NULL && (uint8_t)loggers[i]->_type <= (uint8_t)_currentLog) {
+    if (loggers[i] != NULL && (uint8_t)loggers[i]->_type <= (uint8_t)type) {
       snprintf(_aLLStr, _MAX_TEXT_LENGTH, "%s%s%s: %s\r\n", loggers[i]->_prefix, typeStr, timeStr, _logText);
       // Has to be a one liner since data might be written from somewhere else
       loggers[i]->write(_aLLStr);
     }
   }
   _index = 0;
-  // Reset type string
-  _currentLog = INFO;
 
   #if defined(ESP32)
     xSemaphoreGive(w_mutex);

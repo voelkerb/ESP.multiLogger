@@ -93,6 +93,7 @@ class Logger {
     void log(const char* _log, ...);
 
     void setLogType(LogType type);
+    void _vlog(LogType type, const char* fmt, va_list args);
     LoggerType loggerType;
     LogType _type;
     LogType _currentLog;
@@ -133,7 +134,7 @@ class SPIFFSLogger : public Logger {
     uint32_t getFileSize();
     void listAllFiles();
     int logRows();
-    bool nextRow(char * buffer);
+    bool nextRow(char * buffer, size_t size=_MAX_TEXT_LENGTH);
     // These are function which are required to be overloaded by this class
     void write(const char * str);
     void write(char * str);
@@ -204,6 +205,7 @@ class MultiLogger {
     MultiLogger & operator=(const MultiLogger &); // prevents copy
 
     const char* _logTypeToStr(LogType type);
+    void _vlog(LogType type, const char* fmt, va_list args);
     
 #if defined(ESP32)
     const char* _reset_reason(RESET_REASON reason);
